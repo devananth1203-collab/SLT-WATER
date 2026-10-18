@@ -663,15 +663,36 @@
             <span class="shrink-0 rounded-lg px-2 py-1 text-right ${due > 0 ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}"><span class="block text-[9px] font-bold uppercase">${due > 0 ? "Due" : "Clear"}</span><strong class="text-xs">${money(due)}</strong></span>
           </div>
           <div class="my-3 flex gap-3 rounded-xl bg-slate-50 px-3 py-2 text-xs"><span>Can balance: <strong>${customer.cans}</strong></span><span>Total billed: <strong>${money(customer.billed)}</strong></span></div>
-          <div class="grid grid-cols-3 gap-2">
+          <div class="grid grid-cols-4 gap-1.5">
             <button type="button" onclick="openDeliveryModal('${id}')" class="tap-press rounded-xl bg-sky-600 px-2 py-2.5 text-xs font-bold text-white"><i class="fa-solid fa-truck mr-1" aria-hidden="true"></i>Deliver</button>
             <button type="button" onclick="openPaymentModal('${id}')" class="tap-press rounded-xl bg-emerald-600 px-2 py-2.5 text-xs font-bold text-white"><i class="fa-solid fa-indian-rupee-sign mr-1" aria-hidden="true"></i>Collect</button>
             <button type="button" onclick="openHistoryModal('${id}')" class="tap-press rounded-xl border border-slate-300 bg-white px-2 py-2.5 text-xs font-bold text-slate-700"><i class="fa-solid fa-clock-rotate-left mr-1" aria-hidden="true"></i>History</button>
+            <button type="button" onclick="deleteCustomer('${id}')" class="tap-press rounded-xl border border-red-200 bg-red-50 px-2 py-2.5 text-xs font-bold text-red-700"><i class="fa-solid fa-trash mr-1" aria-hidden="true"></i>Delete</button>
           </div>
         </article>`;
       }).join("");
       byId("empty-state").hidden = customers.length > 0;
       byId("badge-cust-count").textContent = state.customers.length;
+    }
+
+    function deleteCustomer(id) {
+      const customerIndex = state.customers.findIndex((customer) => customer.id === id);
+      if (customerIndex < 0) return showToast("Customer not found. Refresh the page and try again.");
+      const customer = state.customers[customerIndex];
+      const due = customerDue(customer);
+      if (due > 0) return showToast(`Cannot delete ${customer.house}: collect the ${money(due)} pending balance first.`);
+      if (customer.cans > 0) return showToast(`Cannot delete ${customer.house}: collect the ${customer.cans} can(s) still with this customer first.`);
+      const confirmed = confirm(`Delete ${customer.house} · ${customer.name} and all of this customer's history? This cannot be undone.`);
+      if (!confirmed) return;
+
+      state.customers.splice(customerIndex, 1);
+      if (!saveState()) {
+        state.customers.splice(customerIndex, 0, customer);
+        renderApp();
+        return;
+      }
+      renderApp();
+      showToast(`${customer.house} deleted.`);
     }
 
     function renderApp() {
