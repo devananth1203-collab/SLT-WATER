@@ -147,10 +147,24 @@
         <input type="hidden" id="payment-customer-id" />
       <input type="hidden" id="payment-edit-index" value="" />
         <div class="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 p-3"><div><span class="block text-[11px] font-semibold uppercase text-emerald-800">Pending due</span><strong id="payment-due-badge" class="text-2xl text-emerald-800">₹0</strong><span id="payment-cycle-summary" class="block text-[11px] text-emerald-700"></span></div><button type="button" onclick="fillFullPayment()" class="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Pay full</button></div>
-        <label class="block text-xs font-bold uppercase text-slate-600">Amount received (₹)<input id="payment-amount-input" type="number" min="0.01" step="0.01" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-lg font-extrabold" /></label>
+      <button type="button" onclick="openEmptyReturnFromPayment()" class="w-full rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-bold text-amber-800"><i class="fa-solid fa-box-open mr-1" aria-hidden="true"></i>Collect empty cans (no delivery charge)</button>
+      <label class="block text-xs font-bold uppercase text-slate-600">Amount received (₹)<input id="payment-amount-input" type="number" min="0.01" step="0.01" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-lg font-extrabold" /></label>
         <div class="grid grid-cols-2 gap-2.5"><label class="block text-xs font-bold">Payment method<select id="payment-method-input" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs"><option>Cash</option><option>UPI</option><option>Bank transfer</option></select></label><label class="block text-xs font-bold">Payment date<input id="payment-date-input" type="date" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs" /></label></div>
         <label class="block text-xs font-bold">Note (optional)<input id="payment-note-input" maxlength="200" placeholder="Payment note" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-normal" /></label>
         <div class="flex gap-2"><button type="button" onclick="closeModal('modal-payment')" class="flex-1 rounded-xl border border-slate-300 py-3 text-xs font-bold">Cancel</button><button id="payment-submit-label" type="submit" class="flex-1 rounded-xl bg-emerald-600 py-3 text-xs font-bold text-white">Confirm receipt</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-empty-return" class="modal fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 sm:items-center sm:p-4" hidden>
+    <div class="w-full max-w-md space-y-4 rounded-t-3xl bg-white p-5 sm:rounded-2xl">
+      <div class="flex items-center justify-between border-b pb-3"><div><p class="text-[10px] font-bold uppercase tracking-wider text-amber-700">Empty can collection</p><h2 class="text-lg font-bold">Collect cans only</h2><p id="empty-return-subtitle" class="text-xs text-slate-500"></p></div><button type="button" onclick="closeModal('modal-empty-return')" class="p-2 text-slate-500" aria-label="Close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <form id="empty-return-form" onsubmit="submitEmptyReturn(event)" class="space-y-4">
+        <input type="hidden" id="empty-return-customer-id" />
+        <p class="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">This returns cans from the customer to your empty-can stock. It does not record a new delivery or add a charge.</p>
+        <label class="block text-xs font-bold uppercase text-slate-600">Empty cans collected<input id="empty-return-qty" type="number" min="1" step="1" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-lg font-bold" /></label>
+        <p id="empty-return-balance" class="text-xs text-slate-500"></p>
+        <div class="flex gap-2"><button type="button" onclick="closeModal('modal-empty-return')" class="flex-1 rounded-xl border border-slate-300 py-3 text-xs font-bold">Cancel</button><button type="submit" class="flex-1 rounded-xl bg-amber-600 py-3 text-xs font-bold text-white">Confirm empty collection</button></div>
       </form>
     </div>
   </div>
@@ -525,6 +539,43 @@
       showToast(oldPayment ? "Last payment corrected." : `Payment of ${money(amount)} recorded.`);
     }
 
+    function openEmptyReturnModal(id) {
+      const customer = getCustomer(id);
+      if (!customer) return showToast("Customer not found. Refresh the page and try again.");
+      if (customer.cans < 1) return showToast("This customer has no cans to collect.");
+      byId("empty-return-customer-id").value = customer.id;
+      byId("empty-return-subtitle").textContent = `${customer.house} · ${customer.name}`;
+      byId("empty-return-qty").value = customer.cans;
+      byId("empty-return-qty").max = customer.cans;
+      byId("empty-return-balance").textContent = `${customer.cans} can(s) currently with this customer.`;
+      openModal("modal-empty-return");
+    }
+
+    function openEmptyReturnFromPayment() {
+      const customerId = byId("payment-customer-id").value;
+      openEmptyReturnModal(customerId);
+    }
+
+    function submitEmptyReturn(event) {
+      event.preventDefault();
+      const customer = getCustomer(byId("empty-return-customer-id").value);
+      const quantity = Number(byId("empty-return-qty").value);
+      if (!customer) return showToast("Customer not found. Please reopen the collection form.");
+      if (!Number.isInteger(quantity) || quantity < 1) return showToast("Enter a whole number of cans to collect.");
+      if (quantity > customer.cans) return showToast(`This customer only has ${customer.cans} can(s) to return.`);
+      customer.cans -= quantity;
+      state.stock.empty += quantity;
+      recordEvent(customer, "Empty can collection", `${quantity} empty can(s) collected; no new delivery or charge`, "empty-return", { quantity });
+      const saved = saveState();
+      renderApp();
+      if (!byId("modal-payment").hidden) {
+        byId("payment-cycle-summary").textContent = `${customer.cans} can(s) currently with customer`;
+      }
+      closeModal("modal-empty-return");
+      if (!saved) return;
+      showToast(`${quantity} empty can(s) added to godown stock.`);
+    }
+
     function openHistoryModal(id) {
       const customer = getCustomer(id);
       if (!customer) return showToast("Customer not found. Refresh the page and try again.");
@@ -663,9 +714,10 @@
             <span class="shrink-0 rounded-lg px-2 py-1 text-right ${due > 0 ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}"><span class="block text-[9px] font-bold uppercase">${due > 0 ? "Due" : "Clear"}</span><strong class="text-xs">${money(due)}</strong></span>
           </div>
           <div class="my-3 flex gap-3 rounded-xl bg-slate-50 px-3 py-2 text-xs"><span>Can balance: <strong>${customer.cans}</strong></span><span>Total billed: <strong>${money(customer.billed)}</strong></span></div>
-          <div class="grid grid-cols-4 gap-1.5">
+          <div class="grid grid-cols-3 gap-1.5">
             <button type="button" onclick="openDeliveryModal('${id}')" class="tap-press rounded-xl bg-sky-600 px-2 py-2.5 text-xs font-bold text-white"><i class="fa-solid fa-truck mr-1" aria-hidden="true"></i>Deliver</button>
             <button type="button" onclick="openPaymentModal('${id}')" class="tap-press rounded-xl bg-emerald-600 px-2 py-2.5 text-xs font-bold text-white"><i class="fa-solid fa-indian-rupee-sign mr-1" aria-hidden="true"></i>Collect</button>
+            <button type="button" onclick="openEmptyReturnModal('${id}')" class="tap-press rounded-xl border border-amber-200 bg-amber-50 px-2 py-2.5 text-xs font-bold text-amber-800"><i class="fa-solid fa-box-open mr-1" aria-hidden="true"></i>Empty cans</button>
             <button type="button" onclick="openHistoryModal('${id}')" class="tap-press rounded-xl border border-slate-300 bg-white px-2 py-2.5 text-xs font-bold text-slate-700"><i class="fa-solid fa-clock-rotate-left mr-1" aria-hidden="true"></i>History</button>
             <button type="button" onclick="deleteCustomer('${id}')" class="tap-press rounded-xl border border-red-200 bg-red-50 px-2 py-2.5 text-xs font-bold text-red-700"><i class="fa-solid fa-trash mr-1" aria-hidden="true"></i>Delete</button>
           </div>
@@ -681,7 +733,7 @@
       const customer = state.customers[customerIndex];
       const due = customerDue(customer);
       if (due > 0) return showToast(`Cannot delete ${customer.house}: collect the ${money(due)} pending balance first.`);
-      if (customer.cans > 0) return showToast(`Cannot delete ${customer.house}: collect the ${customer.cans} can(s) still with this customer first.`);
+      if (customer.cans > 0) return showToast(`Cannot delete ${customer.house}: collect the ${customer.cans} ${customer.cans === 1 ? "can" : "cans"} still with this customer first.`);
       const confirmed = confirm(`Delete ${customer.house} · ${customer.name} and all of this customer's history? This cannot be undone.`);
       if (!confirmed) return;
 
