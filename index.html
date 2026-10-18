@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#075985" />
+  <title>SLT Water Can Delivery & Billing</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: "Plus Jakarta Sans", sans-serif; -webkit-tap-highlight-color: transparent; }
+    input, textarea, select { font: inherit; }
+    .modal[hidden] { display: none; }
+    .tap-press:active { transform: scale(.98); }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-100 pb-20 text-slate-800 antialiased">
+  <header class="sticky top-0 z-30 bg-gradient-to-r from-sky-700 to-blue-900 text-white shadow-md">
+    <div class="mx-auto flex max-w-xl items-center justify-between gap-2 px-4 py-3">
+      <div class="flex min-w-0 items-center gap-2.5">
+        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/20 bg-white/15 text-lg text-cyan-200">
+          <i class="fa-solid fa-droplet" aria-hidden="true"></i>
+        </div>
+        <div class="min-w-0">
+          <h1 class="truncate text-base font-extrabold leading-tight">SLT Water Delivery</h1>
+          <p class="text-[11px] text-sky-200">Customer ledger & stock</p>
+        </div>
+      </div>
+      <div class="flex shrink-0 items-center gap-2">
+        <button type="button" onclick="openGodownModal()" class="tap-press rounded-lg border border-white/20 bg-white/15 px-2.5 py-2 text-xs font-semibold hover:bg-white/25">
+          <i class="fa-solid fa-warehouse mr-1 text-amber-300" aria-hidden="true"></i>Stock
+        </button>
+        <button type="button" onclick="openAddCustomerModal()" class="tap-press rounded-lg bg-emerald-500 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-600">
+          <i class="fa-solid fa-user-plus mr-1" aria-hidden="true"></i>Add
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-xl space-y-3.5 px-3.5 pt-3">
+    <button type="button" onclick="openGodownModal()" class="block w-full rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:border-sky-300">
+      <span class="mb-2 flex items-center justify-between text-xs font-bold uppercase tracking-wide text-slate-500">
+        <span><i class="fa-solid fa-boxes-stacked mr-1 text-sky-600" aria-hidden="true"></i>Godown stock</span>
+        <span class="text-sky-600">Adjust <i class="fa-solid fa-chevron-right text-[9px]" aria-hidden="true"></i></span>
+      </span>
+      <span class="grid grid-cols-4 gap-1.5 text-center">
+        <span class="rounded-xl border border-sky-100 bg-sky-50 p-2"><span class="block text-[10px] text-sky-700">Filled</span><strong id="stat-filled" class="text-lg text-sky-700">0</strong></span>
+        <span class="rounded-xl border border-amber-100 bg-amber-50 p-2"><span class="block text-[10px] text-amber-700">Empty</span><strong id="stat-empty" class="text-lg text-amber-700">0</strong></span>
+        <span class="rounded-xl border border-indigo-100 bg-indigo-50 p-2"><span class="block text-[10px] text-indigo-700">With customers</span><strong id="stat-circulating" class="text-lg text-indigo-700">0</strong></span>
+        <span class="rounded-xl border border-slate-200 bg-slate-50 p-2"><span class="block text-[10px] text-slate-500">Total owned</span><strong id="stat-total" class="text-lg text-slate-800">0</strong></span>
+      </span>
+    </button>
+
+    <section class="grid grid-cols-2 gap-2.5" aria-label="Business summary">
+      <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+        <div><span class="block text-[11px] text-slate-500">Market unpaid</span><strong id="stat-total-market-due" class="text-base text-amber-700">₹0</strong></div>
+        <i class="fa-solid fa-indian-rupee-sign text-amber-600" aria-hidden="true"></i>
+      </div>
+      <button type="button" onclick="openDefaultPricePrompt()" class="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 text-left shadow-sm hover:border-sky-300">
+        <div><span class="block text-[11px] text-slate-500">Default can price</span><strong class="text-base">₹<span id="stat-default-rate">35</span> <span class="text-xs font-normal text-slate-400">/can</span></strong></div>
+        <i class="fa-solid fa-pen text-sky-600" aria-hidden="true"></i>
+      </button>
+    </section>
+
+    <section class="space-y-2" aria-label="Find customers">
+      <label class="relative block">
+        <span class="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-slate-400"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+        <input id="search-input" type="search" oninput="renderCustomerList()" placeholder="Search house, name, or mobile..." class="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-10 pr-10 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-sky-500" />
+        <button id="clear-search-btn" type="button" onclick="clearSearch()" class="absolute inset-y-0 right-3 hidden text-slate-400 hover:text-slate-700" aria-label="Clear search"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </label>
+      <div class="flex gap-1.5 overflow-x-auto pb-1 text-xs">
+        <button type="button" onclick="setFilter('all')" id="chip-all" class="filter-chip whitespace-nowrap rounded-lg bg-sky-600 px-3 py-1.5 font-semibold text-white">All houses</button>
+        <button type="button" onclick="setFilter('due')" id="chip-due" class="filter-chip whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-600">Due balance</button>
+        <button type="button" onclick="setFilter('cleared')" id="chip-cleared" class="filter-chip whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-semibold text-slate-600">Cleared (₹0)</button>
+      </div>
+    </section>
+
+    <section id="customer-list" class="space-y-3" aria-live="polite"></section>
+    <section id="empty-state" hidden class="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center">
+      <i class="fa-solid fa-user-slash mb-2 text-2xl text-slate-400" aria-hidden="true"></i>
+      <h2 class="text-sm font-bold">No customers found</h2>
+      <p class="mt-1 text-xs text-slate-500">Add a customer or change your search.</p>
+      <button type="button" onclick="openAddCustomerModal()" class="tap-press mt-3 rounded-xl bg-sky-600 px-4 py-2 text-xs font-bold text-white">+ Add customer</button>
+    </section>
+  </main>
+
+  <footer class="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-2.5 backdrop-blur">
+    <div class="mx-auto flex max-w-xl items-center justify-between text-xs text-slate-500">
+      <span><i class="fa-solid fa-house mr-1 text-emerald-500" aria-hidden="true"></i><strong id="badge-cust-count" class="text-slate-700">0</strong> houses</span>
+      <span>SLT daily ledger</span>
+    </div>
+  </footer>
+
+  <div id="toast" role="status" aria-live="polite" class="fixed bottom-16 left-1/2 z-[70] hidden max-w-[90vw] -translate-x-1/2 rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-lg"></div>
+
+  <div id="modal-add-customer" class="modal fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 sm:items-center sm:p-4" hidden>
+    <div class="max-h-[92vh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-2xl">
+      <div class="flex items-center justify-between border-b pb-3"><div><p class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Customer setup</p><h2 class="text-lg font-bold">Add a house</h2></div><button type="button" onclick="closeModal('modal-add-customer')" class="p-2 text-slate-500" aria-label="Close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <form id="add-customer-form" onsubmit="submitAddCustomer(event)" class="space-y-3">
+        <label class="block text-xs font-bold">House / Door number<input id="customer-house-input" required maxlength="40" placeholder="e.g. House 12" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal" /></label>
+        <label class="block text-xs font-bold">Customer name<input id="customer-name-input" required maxlength="80" placeholder="Customer name" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal" /></label>
+        <label class="block text-xs font-bold">Mobile number (optional)<input id="customer-mobile-input" type="tel" inputmode="tel" maxlength="20" placeholder="10-digit mobile number" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal" /></label>
+        <label class="block text-xs font-bold">Price per can (₹)<input id="customer-rate-input" type="number" min="0.01" max="100000" step="0.01" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-normal" /></label>
+        <div class="flex gap-2 pt-1"><button type="button" onclick="closeModal('modal-add-customer')" class="flex-1 rounded-xl border border-slate-300 py-3 text-xs font-bold">Cancel</button><button type="submit" class="flex-1 rounded-xl bg-emerald-600 py-3 text-xs font-bold text-white">Save customer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-stock" class="modal fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 sm:items-center sm:p-4" hidden>
+    <div class="max-h-[92vh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-2xl">
+      <div class="flex items-center justify-between border-b pb-3"><div><p class="text-[10px] font-bold uppercase tracking-wider text-sky-700">Godown inventory</p><h2 class="text-lg font-bold">Update stock</h2></div><button type="button" onclick="closeModal('modal-stock')" class="p-2 text-slate-500" aria-label="Close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <form id="stock-form" onsubmit="submitStock(event)" class="space-y-3">
+        <p class="text-xs text-slate-600">Enter the exact number of filled and empty cans currently in your godown. Cans with customers are counted from delivery records.</p>
+        <label class="block text-xs font-bold">Filled cans on hand<input id="stock-filled-input" type="number" min="0" max="100000" step="1" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base" /></label>
+        <label class="block text-xs font-bold">Empty cans on hand<input id="stock-empty-input" type="number" min="0" max="100000" step="1" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-base" /></label>
+        <div class="rounded-xl bg-slate-50 p-3 text-xs text-slate-600">With customers: <strong id="stock-circulating-preview">0</strong> · Total owned: <strong id="stock-total-preview">0</strong></div>
+        <button type="button" onclick="openEmptyCanList()" class="w-full rounded-xl border border-sky-200 bg-sky-50 py-2.5 text-xs font-bold text-sky-800"><i class="fa-solid fa-list-check mr-1" aria-hidden="true"></i>View cans with each customer</button>
+        <div class="flex gap-2"><button type="button" onclick="closeModal('modal-stock')" class="flex-1 rounded-xl border border-slate-300 py-3 text-xs font-bold">Cancel</button><button type="submit" class="flex-1 rounded-xl bg-sky-600 py-3 text-xs font-bold text-white">Save stock</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-deliver" class="modal fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 sm:items-center sm:p-4" hidden>
+    <div class="max-h-[92vh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-2xl">
+      <div class="flex items-center justify-between border-b pb-3"><div><p class="text-[10px] font-bold uppercase tracking-wider text-sky-700">Delivery record</p><h2 id="deliver-title" class="text-lg font-bold">Deliver cans</h2><p id="deliver-subtitle" class="text-xs text-slate-500"></p></div><button type="button" onclick="closeModal('modal-deliver')" class="p-2 text-slate-500" aria-label="Close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <form id="deliver-form" onsubmit="submitDelivery(event)" class="space-y-4">
+        <input type="hidden" id="deliver-customer-id" />
+        <input type="hidden" id="deliver-edit-index" value="" />
+        <div><label class="mb-1.5 block text-xs font-bold uppercase text-slate-600">Filled cans delivered</label><div class="mb-2 grid grid-cols-4 gap-2">
+          <button type="button" onclick="selectDeliverQty(1)" class="deliver-qty-btn rounded-xl border-2 border-sky-500 bg-sky-50 py-2.5 text-sm font-bold text-sky-700">1</button><button type="button" onclick="selectDeliverQty(2)" class="deliver-qty-btn rounded-xl border-2 border-slate-200 bg-slate-50 py-2.5 text-sm font-bold">2</button><button type="button" onclick="selectDeliverQty(3)" class="deliver-qty-btn rounded-xl border-2 border-slate-200 bg-slate-50 py-2.5 text-sm font-bold">3</button><button type="button" onclick="selectDeliverQty(4)" class="deliver-qty-btn rounded-xl border-2 border-slate-200 bg-slate-50 py-2.5 text-sm font-bold">4</button>
+        </div><label class="flex items-center gap-2 text-xs text-slate-500">Custom count<input id="deliver-qty-custom" type="number" min="1" max="100" step="1" value="1" oninput="onCustomQtyChange()" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold text-slate-800" /></label></div>
+        <label class="block text-xs font-bold uppercase text-slate-600">Price per can (₹)<input id="deliver-rate-input" type="number" min="0.01" max="100000" step="0.01" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm" /></label>
+        <div><label for="deliver-empty-returned" class="mb-1.5 block text-xs font-bold uppercase text-slate-600">Empty cans returned</label><div class="flex items-center gap-2"><button type="button" onclick="adjustEmptyInput(-1)" class="h-10 w-10 rounded-xl border border-slate-300 bg-slate-100 font-bold">−</button><input id="deliver-empty-returned" type="number" min="0" max="100" step="1" value="0" required class="w-full rounded-xl border border-slate-300 py-2 text-center text-base font-bold" /><button type="button" onclick="adjustEmptyInput(1)" class="h-10 w-10 rounded-xl border border-slate-300 bg-slate-100 font-bold">+</button></div><p class="mt-1 text-[11px] text-slate-500">Cannot return more cans than the customer currently has after this delivery.</p></div>
+        <div class="space-y-1 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs"><div class="flex justify-between"><span>Rate per can</span><strong id="deliver-rate-display">₹0</strong></div><div class="flex justify-between"><span>Bill added now</span><strong id="deliver-cost-display" class="text-sky-700">₹0</strong></div><div class="flex justify-between border-t border-slate-200 pt-1 font-bold"><span>New pending balance</span><strong id="deliver-new-balance-display" class="text-amber-700">₹0</strong></div><p id="deliver-stock-hint" class="pt-1 text-slate-500"></p></div>
+        <div class="flex gap-2"><button type="button" onclick="closeModal('modal-deliver')" class="flex-1 rounded-xl border border-slate-300 py-3 text-xs font-bold">Cancel</button><button id="deliver-submit-label" type="submit" class="flex-1 rounded-xl bg-sky-600 py-3 text-xs font-bold text-white">Confirm delivery</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-payment" class="modal fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 sm:items-center sm:p-4" hidden>
+    <div class="max-h-[92vh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-2xl">
+      <div class="flex items-center justify-between border-b pb-3"><div><p class="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Payment receipt</p><h2 class="text-lg font-bold">Collect payment</h2><p id="payment-subtitle" class="text-xs text-slate-500"></p></div><button type="button" onclick="closeModal('modal-payment')" class="p-2 text-slate-500" aria-label="Close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <form id="payment-form" onsubmit="submitPayment(event)" class="space-y-4">
+        <input type="hidden" id="payment-customer-id" />
+      <input type="hidden" id="payment-edit-index" value="" />
+        <div class="flex items-center justify-between rounded-2xl border border-emerald-200 bg-emerald-50 p-3"><div><span class="block text-[11px] font-semibold uppercase text-emerald-800">Pending due</span><strong id="payment-due-badge" class="text-2xl text-emerald-800">₹0</strong><span id="payment-cycle-summary" class="block text-[11px] text-emerald-700"></span></div><button type="button" onclick="fillFullPayment()" class="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Pay full</button></div>
+        <label class="block text-xs font-bold uppercase text-slate-600">Amount received (₹)<input id="payment-amount-input" type="number" min="0.01" step="0.01" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-lg font-extrabold" /></label>
+        <div class="grid grid-cols-2 gap-2.5"><label class="block text-xs font-bold">Payment method<select id="payment-method-input" class="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-xs"><option>Cash</option><option>UPI</option><option>Bank transfer</option></select></label><label class="block text-xs font-bold">Payment date<input id="payment-date-input" type="date" required class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs" /></label></div>
+        <label class="block text-xs font-bold">Note (optional)<input id="payment-note-input" maxlength="200" placeholder="Payment note" class="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-normal" /></label>
+        <div class="flex gap-2"><button type="button" onclick="closeModal('modal-payment')" class="flex-1 rounded-xl border border-slate-300 py-3 text-xs font-bold">Cancel</button><button id="payment-submit-label" type="submit" class="flex-1 rounded-xl bg-emerald-600 py-3 text-xs font-bold text-white">Confirm receipt</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="modal-history" class="modal fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 sm:items-center sm:p-4" hidden>
+    <div class="flex max-h-[90vh] w-full max-w-lg flex-col rounded-t-3xl bg-white p-5 sm:rounded-2xl">
+      <div class="mb-3 flex items-center justify-between border-b pb-3"><div><p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Customer ledger</p><h2 id="history-title" class="text-lg font-bold">History</h2><p id="history-subtitle" class="text-xs text-slate-500"></p></div><button type="button" onclick="closeModal('modal-history')" class="p-2 text-slate-500" aria-label="Close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <div class="mb-3 grid grid-cols-3 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 text-center text-xs"><div><span class="block text-slate-500">Cans with customer</span><strong id="hist-current-cans">0</strong></div><div><span class="block text-slate-500">Total paid</span><strong id="hist-total-paid" class="text-emerald-700">₹0</strong></div><div><span class="block text-slate-500">Due balance</span><strong id="hist-balance-due" class="text-amber-700">₹0</strong></div></div>
+      <div class="mb-3 grid grid-cols-2 gap-2">
+        <button id="history-edit-payment" type="button" onclick="openEditLastPayment()" class="hidden rounded-xl border border-emerald-200 bg-emerald-50 px-2 py-2.5 text-xs font-bold text-emerald-800">Edit last payment</button>
+        <button id="history-edit-delivery" type="button" onclick="openEditLastDelivery()" class="hidden rounded-xl border border-sky-200 bg-sky-50 px-2 py-2.5 text-xs font-bold text-sky-800">Edit last delivery</button>
+      </div>
+      <div id="history-list" class="min-h-20 flex-1 space-y-2 overflow-y-auto text-xs"></div>
+    </div>
+  </div>
+
+  <div id="modal-empty-list" class="modal fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 sm:items-center sm:p-4" hidden>
+    <div class="flex max-h-[88vh] w-full max-w-md flex-col rounded-t-3xl bg-white p-5 sm:rounded-2xl">
+      <div class="mb-3 flex items-center justify-between border-b pb-3"><div><p class="text-[10px] font-bold uppercase tracking-wider text-sky-700">Can return list</p><h2 class="text-lg font-bold">Cans with customers</h2><p class="text-xs text-slate-500">Customer cans to collect as empties</p></div><button type="button" onclick="closeModal('modal-empty-list')" class="p-2 text-slate-500" aria-label="Close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <p id="empty-list-total" class="mb-3 rounded-xl bg-amber-50 p-3 text-xs text-amber-900"></p>
+      <div id="empty-can-list" class="space-y-2 overflow-y-auto text-xs"></div>
+    </div>
+  </div>
+
+  <div id="modal-notify" class="modal fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-0 sm:items-center sm:p-4" hidden>
+    <div class="max-h-[92vh] w-full max-w-md space-y-3 overflow-y-auto rounded-t-3xl bg-white p-5 sm:rounded-2xl">
+      <div class="flex items-center justify-between border-b pb-3"><div><p class="text-[10px] font-bold uppercase tracking-wider text-green-700">Delivery receipt</p><h2 class="text-lg font-bold">Send customer receipt</h2><p id="notify-subtitle" class="text-xs text-slate-500"></p></div><button type="button" onclick="closeModal('modal-notify')" class="p-2 text-slate-500" aria-label="Close"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button></div>
+      <textarea id="notify-text-preview" rows="7" readonly class="w-full rounded-xl border border-slate-300 bg-slate-50 p-3 text-xs"></textarea>
+      <div class="grid grid-cols-2 gap-2"><a id="btn-open-wa" href="#" target="_blank" rel="noopener noreferrer" class="rounded-xl bg-green-600 p-3 text-center text-xs font-bold text-white">WhatsApp</a><a id="btn-open-sms" href="#" class="rounded-xl bg-slate-800 p-3 text-center text-xs font-bold text-white">SMS message</a></div>
+      <button type="button" onclick="copyNotifyText()" class="w-full rounded-xl border border-slate-300 py-2.5 text-xs font-bold">Copy receipt text</button>
+    </div>
+  </div>
+
+  <script>
+    "use strict";
+
+    const STORAGE_KEY = "slt-water-delivery-v1";
+    const state = { customers: [], stock: { filled: 0, empty: 0 }, defaultRate: 35 };
+    let activeFilter = "all";
+    let receiptText = "";
+    let toastTimer;
+
+    const byId = (id) => document.getElementById(id);
+    const money = (amount) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(amount);
+    const roundMoney = (amount) => Math.round((amount + Number.EPSILON) * 100) / 100;
+    const customerDue = (customer) => Math.max(0, roundMoney(customer.billed - customer.paid));
+    const circulatingCans = () => state.customers.reduce((sum, customer) => sum + customer.cans, 0);
+    const totalOwnedCans = () => state.stock.filled + state.stock.empty + circulatingCans();
+    const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+    const getCustomer = (id) => state.customers.find((customer) => customer.id === id);
+    const validCount = (value) => Number.isInteger(Number(value)) && Number(value) >= 0;
+
+    function showToast(message) {
+      const toast = byId("toast");
+      toast.textContent = message;
+      toast.classList.remove("hidden");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => toast.classList.add("hidden"), 3500);
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        if (!saved || !Array.isArray(saved.customers) || !saved.stock || !Number.isFinite(Number(saved.defaultRate))) {
+          throw new Error("Saved data has an unsupported format.");
+        }
+        state.customers = saved.customers.map((customer) => {
+          if (!customer || typeof customer.id !== "string" || typeof customer.house !== "string" || typeof customer.name !== "string") {
+            throw new Error("A saved customer record is invalid.");
+          }
+          return {
+            id: customer.id,
+            house: customer.house,
+            name: customer.name,
+            mobile: typeof customer.mobile === "string" ? customer.mobile : "",
+            rate: Math.max(0, Number(customer.rate) || 0),
+            cans: Math.max(0, Math.floor(Number(customer.cans) || 0)),
+            billed: Math.max(0, roundMoney(Number(customer.billed) || 0)),
+            paid: Math.max(0, roundMoney(Number(customer.paid) || 0)),
+            history: Array.isArray(customer.history) ? customer.history : []
+          };
+        });
+        byId("deliver-rate-input").addEventListener("input", updateDeliveryPreview);
+        byId("deliver-empty-returned").addEventListener("input", updateDeliveryPreview);
+        state.stock = {
+          filled: Math.max(0, Math.floor(Number(saved.stock.filled) || 0)),
+          empty: Math.max(0, Math.floor(Number(saved.stock.empty) || 0))
+        };
+        state.defaultRate = Math.max(0.01, Number(saved.defaultRate));
+      } catch (error) {
+        showToast(`Could not load saved records: ${error.message}`);
+        state.customers = [];
+        state.stock = { filled: 0, empty: 0 };
+        state.defaultRate = 35;
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        return true;
+      } catch (error) {
+        showToast(`Could not save changes in this browser: ${error.message}`);
+        return false;
+      }
+    }
+
+    function recordEvent(customer, type, details, kind = null, data = null) {
+      customer.history.unshift({ type, details, at: new Date().toISOString(), ...(kind ? { kind, data } : {}) });
+    }
+
+    function openModal(id) {
+      const modal = byId(id);
+      if (!modal) {
+        showToast("This screen is unavailable. Please reload the app.");
+        return;
+      }
+      modal.hidden = false;
+      document.body.classList.add("overflow-hidden");
+    }
+
+    function closeModal(id) {
+      const modal = byId(id);
+      if (modal) modal.hidden = true;
+      if (!document.querySelector(".modal:not([hidden])")) document.body.classList.remove("overflow-hidden");
+    }
+
+    function openAddCustomerModal() {
+      byId("add-customer-form").reset();
+      byId("customer-rate-input").value = state.defaultRate;
+      openModal("modal-add-customer");
+      byId("customer-house-input").focus();
+    }
+
+    function submitAddCustomer(event) {
+      event.preventDefault();
+      const house = byId("customer-house-input").value.trim();
+      const name = byId("customer-name-input").value.trim();
+      const mobile = byId("customer-mobile-input").value.trim();
+      const rate = Number(byId("customer-rate-input").value);
+      if (!house || !name || !Number.isFinite(rate) || rate <= 0 || rate > 100000) {
+        showToast("Enter a house number, customer name, and valid price.");
+        return;
+      }
+      if (state.customers.some((customer) => customer.house.toLocaleLowerCase() === house.toLocaleLowerCase())) {
+        showToast("That house number is already registered.");
+        return;
+      }
+      const customer = {
+        id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+        house, name, mobile, rate: roundMoney(rate), cans: 0, billed: 0, paid: 0, history: []
+      };
+      state.customers.unshift(customer);
+      recordEvent(customer, "Customer added", "Account created");
+      const saved = saveState();
+      renderApp();
+      closeModal("modal-add-customer");
+      if (!saved) return;
+      showToast(`${name} added successfully.`);
+    }
+
+    function openGodownModal() {
+      byId("stock-filled-input").value = state.stock.filled;
+      byId("stock-empty-input").value = state.stock.empty;
+      byId("stock-circulating-preview").textContent = circulatingCans();
+      byId("stock-total-preview").textContent = totalOwnedCans();
+      openModal("modal-stock");
+    }
+
+    function submitStock(event) {
+      event.preventDefault();
+      const filled = Number(byId("stock-filled-input").value);
+      const empty = Number(byId("stock-empty-input").value);
+      if (!validCount(filled) || !validCount(empty)) {
+        showToast("Stock must be whole numbers greater than or equal to zero.");
+        return;
+      }
+      state.stock = { filled, empty };
+      const saved = saveState();
+      renderApp();
+      closeModal("modal-stock");
+      if (!saved) return;
+      showToast("Godown stock updated.");
+    }
+
+    function openDefaultPricePrompt() {
+      const entered = prompt("Enter the default price per can in rupees:", String(state.defaultRate));
+      if (entered === null) return;
+      const rate = Number(entered);
+      if (!Number.isFinite(rate) || rate <= 0 || rate > 100000) {
+        showToast("Enter a valid price greater than ₹0.");
+        return;
+      }
+      state.defaultRate = roundMoney(rate);
+      const saved = saveState();
+      renderApp();
+      if (!saved) return;
+      showToast(`Default price updated to ${money(state.defaultRate)}.`);
+    }
+
+    function openDeliveryModal(id) {
+      const customer = getCustomer(id);
+      if (!customer) return showToast("Customer not found. Refresh the page and try again.");
+      byId("deliver-customer-id").value = customer.id;
+      byId("deliver-title").textContent = `Delivery for ${customer.house}`;
+      byId("deliver-subtitle").textContent = customer.name;
+      byId("deliver-edit-index").value = "";
+      byId("deliver-qty-custom").value = 1;
+      byId("deliver-rate-input").value = customer.rate;
+      byId("deliver-rate-input").oninput = updateDeliveryPreview;
+      byId("deliver-empty-returned").oninput = updateDeliveryPreview;
+      byId("deliver-empty-returned").value = 0;
+      byId("deliver-submit-label").textContent = "Confirm delivery";
+      byId("deliver-stock-hint").textContent = `${state.stock.filled} filled cans currently in godown.`;
+      selectDeliverQty(1);
+      openModal("modal-deliver");
+    }
+
+    function selectDeliverQty(quantity) {
+      byId("deliver-qty-custom").value = quantity;
+      document.querySelectorAll(".deliver-qty-btn").forEach((button, index) => {
+        const selected = index + 1 === quantity;
+        button.className = `deliver-qty-btn rounded-xl border-2 py-2.5 text-sm font-bold ${selected ? "border-sky-500 bg-sky-50 text-sky-700" : "border-slate-200 bg-slate-50 text-slate-700"}`;
+      });
+      updateDeliveryPreview();
+    }
+
+    function onCustomQtyChange() {
+      const quantity = Number(byId("deliver-qty-custom").value);
+      document.querySelectorAll(".deliver-qty-btn").forEach((button, index) => {
+        const selected = index + 1 === quantity;
+        button.className = `deliver-qty-btn rounded-xl border-2 py-2.5 text-sm font-bold ${selected ? "border-sky-500 bg-sky-50 text-sky-700" : "border-slate-200 bg-slate-50 text-slate-700"}`;
+      });
+      updateDeliveryPreview();
+    }
+
+    function adjustEmptyInput(amount) {
+      const input = byId("deliver-empty-returned");
+      input.value = Math.max(0, (Number(input.value) || 0) + amount);
+      updateDeliveryPreview();
+    }
+
+    function updateDeliveryPreview() {
+      const customer = getCustomer(byId("deliver-customer-id").value);
+      if (!customer) return;
+      const quantity = Number(byId("deliver-qty-custom").value) || 0;
+      const rate = Number(byId("deliver-rate-input").value) || 0;
+      const cost = roundMoney(quantity * rate);
+      byId("deliver-rate-display").textContent = `${money(rate)} / can`;
+      byId("deliver-cost-display").textContent = money(cost);
+      const editIndex = byId("deliver-edit-index").value;
+      const oldDelivery = editIndex === "" ? null : customer.history[Number(editIndex)];
+      const oldCost = oldDelivery && oldDelivery.data ? Number(oldDelivery.data.cost) || 0 : 0;
+      byId("deliver-new-balance-display").textContent = money(customerDue(customer) - oldCost + cost);
+    }
+
+    function submitDelivery(event) {
+      event.preventDefault();
+      const customer = getCustomer(byId("deliver-customer-id").value);
+      const quantity = Number(byId("deliver-qty-custom").value);
+      const returned = Number(byId("deliver-empty-returned").value);
+      const rate = Number(byId("deliver-rate-input").value);
+      if (!customer) return showToast("Customer not found. Please reopen the delivery form.");
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100 || !Number.isInteger(returned) || returned < 0 || returned > 100 || !Number.isFinite(rate) || rate <= 0 || rate > 100000) {
+        return showToast("Enter valid can counts and a valid price per can.");
+      }
+      const editIndex = byId("deliver-edit-index").value;
+      const oldDelivery = editIndex === "" ? null : customer.history[Number(editIndex)];
+      if (editIndex !== "" && (!oldDelivery || oldDelivery.kind !== "delivery" || !oldDelivery.data)) {
+        return showToast("This delivery record cannot be edited. Open history and choose the latest delivery.");
+      }
+      const oldQuantity = oldDelivery ? Number(oldDelivery.data.quantity) : 0;
+      const oldReturned = oldDelivery ? Number(oldDelivery.data.returned) : 0;
+      const oldCost = oldDelivery ? Number(oldDelivery.data.cost) : 0;
+      const stockAvailable = state.stock.filled + oldQuantity;
+      if (quantity > stockAvailable) return showToast(`Not enough filled cans. Available after correcting the old record: ${stockAvailable}.`);
+      const cansBeforeDelivery = customer.cans - oldQuantity + oldReturned;
+      if (cansBeforeDelivery < 0 || returned > cansBeforeDelivery + quantity) {
+        return showToast(`This customer can return up to ${Math.max(0, cansBeforeDelivery + quantity)} empty cans.`);
+      }
+      if (oldDelivery && state.stock.empty - oldReturned + returned < 0) {
+        return showToast("The correction would remove more empty cans than are currently in godown stock.");
+      }
+      const cost = roundMoney(quantity * rate);
+      if (customer.billed - oldCost + cost < customer.paid) {
+        return showToast("This correction would make the bill lower than payments already received. Correct the payment first.");
+      }
+      state.stock.filled += oldQuantity - quantity;
+      state.stock.empty += returned - oldReturned;
+      customer.cans = cansBeforeDelivery + quantity - returned;
+      customer.billed = roundMoney(customer.billed - oldCost + cost);
+      const details = `${quantity} can(s) delivered; ${returned} empty returned; charge ${money(cost)}`;
+      if (oldDelivery) {
+        oldDelivery.details = details;
+        oldDelivery.data = { quantity, returned, rate: roundMoney(rate), cost };
+      } else {
+        recordEvent(customer, "Delivery", details, "delivery", { quantity, returned, rate: roundMoney(rate), cost });
+      }
+      const saved = saveState();
+      renderApp();
+      const receipt = createReceipt(customer, quantity, returned, rate);
+      closeModal("modal-deliver");
+      if (!saved) return;
+      if (oldDelivery) openHistoryModal(customer.id);
+      showToast(oldDelivery ? "Last delivery corrected." : "Delivery recorded successfully.");
+      if (customer.mobile) openReceiptModal(customer, receipt);
+    }
+
+    function openPaymentModal(id) {
+      const customer = getCustomer(id);
+      if (!customer) return showToast("Customer not found. Refresh the page and try again.");
+      if (customerDue(customer) <= 0) return showToast("This customer has no outstanding balance.");
+      byId("payment-customer-id").value = customer.id;
+      byId("payment-edit-index").value = "";
+      byId("payment-subtitle").textContent = `${customer.house} · ${customer.name}`;
+      byId("payment-due-badge").textContent = money(customerDue(customer));
+      byId("payment-cycle-summary").textContent = `${customer.cans} can(s) currently with customer`;
+      byId("payment-amount-input").value = customerDue(customer) || "";
+      byId("payment-amount-input").max = customerDue(customer);
+      const today = new Date();
+      byId("payment-date-input").value = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      byId("payment-note-input").value = "";
+      byId("payment-submit-label").textContent = "Confirm receipt";
+      openModal("modal-payment");
+    }
+
+    function fillFullPayment() {
+      const customer = getCustomer(byId("payment-customer-id").value);
+      if (!customer) return showToast("Customer not found. Please reopen the payment form.");
+      const editIndex = byId("payment-edit-index").value;
+      const oldPayment = editIndex === "" ? null : customer.history[Number(editIndex)];
+      const available = customerDue(customer) + (oldPayment && oldPayment.data ? Number(oldPayment.data.amount) || 0 : 0);
+      byId("payment-amount-input").value = available.toFixed(2);
+    }
+
+    function submitPayment(event) {
+      event.preventDefault();
+      const customer = getCustomer(byId("payment-customer-id").value);
+      const amount = roundMoney(Number(byId("payment-amount-input").value));
+      const date = byId("payment-date-input").value;
+      if (!customer) return showToast("Customer not found. Please reopen the payment form.");
+      if (!Number.isFinite(amount) || amount <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(`${date}T00:00:00`).getTime())) {
+        return showToast("Enter a valid amount and payment date.");
+      }
+      const editIndex = byId("payment-edit-index").value;
+      const oldPayment = editIndex === "" ? null : customer.history[Number(editIndex)];
+      if (editIndex !== "" && (!oldPayment || oldPayment.kind !== "payment" || !oldPayment.data)) {
+        return showToast("This payment record cannot be edited. Open history and choose the latest payment.");
+      }
+      const oldAmount = oldPayment ? Number(oldPayment.data.amount) || 0 : 0;
+      const otherPayments = roundMoney(customer.paid - oldAmount);
+      const availableDue = Math.max(0, roundMoney(customer.billed - otherPayments));
+      if (amount > availableDue) return showToast(`Payment cannot exceed the available due of ${money(availableDue)}.`);
+      const method = byId("payment-method-input").value;
+      const note = byId("payment-note-input").value.trim();
+      customer.paid = roundMoney(otherPayments + amount);
+      const details = `${money(amount)} received by ${method} on ${date}${note ? ` · ${note}` : ""}`;
+      const data = { amount, date, method, note };
+      if (oldPayment) {
+        oldPayment.details = details;
+        oldPayment.data = data;
+      } else {
+        recordEvent(customer, "Payment", details, "payment", data);
+      }
+      const saved = saveState();
+      renderApp();
+      closeModal("modal-payment");
+      if (!saved) return;
+      if (oldPayment) openHistoryModal(customer.id);
+      showToast(oldPayment ? "Last payment corrected." : `Payment of ${money(amount)} recorded.`);
+    }
+
+    function openHistoryModal(id) {
+      const customer = getCustomer(id);
+      if (!customer) return showToast("Customer not found. Refresh the page and try again.");
+      byId("history-title").dataset.customerId = customer.id;
+      byId("history-title").textContent = `${customer.house} · ${customer.name}`;
+      byId("history-subtitle").textContent = `Price ${money(customer.rate)} per can`;
+      byId("hist-current-cans").textContent = customer.cans;
+      byId("hist-total-paid").textContent = money(customer.paid);
+      byId("hist-balance-due").textContent = money(customerDue(customer));
+      byId("history-edit-payment").classList.toggle("hidden", !customer.history.some((item) => item.kind === "payment" && item.data));
+      byId("history-edit-delivery").classList.toggle("hidden", !customer.history.some((item) => item.kind === "delivery" && item.data));
+      const history = [...customer.history].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+      byId("history-list").innerHTML = history.length ? history.map((item) => `
+        <article class="rounded-xl border border-slate-200 p-3">
+          <div class="flex items-start justify-between gap-2"><strong>${escapeHtml(item.type || "Record")}</strong><time class="shrink-0 text-[10px] text-slate-500">${escapeHtml(formatDate(item.at))}</time></div>
+          <p class="mt-1 text-slate-600">${escapeHtml(item.details || "")}</p>
+        </article>`).join("") : '<p class="py-6 text-center text-slate-500">No records yet.</p>';
+      openModal("modal-history");
+    }
+
+    function openEditLastPayment() {
+      const customer = getCustomer(byId("history-title").dataset.customerId);
+      if (!customer) return showToast("Customer not found. Refresh the page and try again.");
+      const index = customer.history.findIndex((item) => item.kind === "payment" && item.data);
+      if (index < 0) return showToast("There is no editable payment record. Older records cannot be reliably corrected.");
+      const payment = customer.history[index];
+      const availableDue = Math.max(0, roundMoney(customer.billed - (customer.paid - Number(payment.data.amount))));
+      byId("payment-customer-id").value = customer.id;
+      byId("payment-edit-index").value = index;
+      byId("payment-subtitle").textContent = `${customer.house} · ${customer.name} · editing last payment`;
+      byId("payment-due-badge").textContent = money(customerDue(customer));
+      byId("payment-cycle-summary").textContent = "Editing your most recent saved payment";
+      byId("payment-amount-input").value = payment.data.amount;
+      byId("payment-amount-input").max = availableDue;
+      byId("payment-date-input").value = payment.data.date;
+      byId("payment-method-input").value = payment.data.method;
+      byId("payment-note-input").value = payment.data.note || "";
+      byId("payment-submit-label").textContent = "Save payment correction";
+      openModal("modal-payment");
+    }
+
+    function openEditLastDelivery() {
+      const customer = getCustomer(byId("history-title").dataset.customerId);
+      if (!customer) return showToast("Customer not found. Refresh the page and try again.");
+      const index = customer.history.findIndex((item) => item.kind === "delivery" && item.data);
+      if (index < 0) return showToast("There is no editable delivery record. Older records cannot be reliably corrected.");
+      const delivery = customer.history[index];
+      byId("deliver-customer-id").value = customer.id;
+      byId("deliver-edit-index").value = index;
+      byId("deliver-title").textContent = `Correct last delivery · ${customer.house}`;
+      byId("deliver-subtitle").textContent = customer.name;
+      byId("deliver-qty-custom").value = delivery.data.quantity;
+      byId("deliver-rate-input").value = delivery.data.rate;
+      byId("deliver-empty-returned").value = delivery.data.returned;
+      byId("deliver-rate-input").oninput = updateDeliveryPreview;
+      byId("deliver-empty-returned").oninput = updateDeliveryPreview;
+      byId("deliver-submit-label").textContent = "Save delivery correction";
+      byId("deliver-stock-hint").textContent = "Stock and customer can balances will be adjusted with this correction.";
+      onCustomQtyChange();
+      openModal("modal-deliver");
+    }
+
+    function openEmptyCanList() {
+      const customers = [...state.customers].sort((a, b) => a.house.localeCompare(b.house, undefined, { numeric: true }));
+      const total = circulatingCans();
+      byId("empty-list-total").textContent = `${total} can(s) with ${customers.filter((customer) => customer.cans > 0).length} customer(s). Collect these cans back as empties.`;
+      byId("empty-can-list").innerHTML = customers.length ? customers.map((customer) => `
+        <article class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
+          <span class="min-w-0"><strong class="block truncate">${escapeHtml(customer.house)} · ${escapeHtml(customer.name)}</strong><span class="text-slate-500">${customer.mobile ? escapeHtml(customer.mobile) : "No mobile number"}</span></span>
+          <strong class="shrink-0 rounded-lg bg-amber-50 px-3 py-1.5 text-amber-800">${customer.cans} can(s)</strong>
+        </article>`).join("") : '<p class="py-8 text-center text-slate-500">No customers have been added yet.</p>';
+      openModal("modal-empty-list");
+    }
+
+    function formatDate(value) {
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? "Date unavailable" : date.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    function createReceipt(customer, quantity, returned, rate) {
+      return `SLT WATER RECEIPT\n${customer.house} - ${customer.name}\nDate: ${new Date().toLocaleString("en-IN")}\nDelivered: ${quantity} can(s)\nEmpty cans returned: ${returned}\nCharge: ${money(quantity * rate)}\nPending balance: ${money(customerDue(customer))}\nThank you.`;
+    }
+
+    function openReceiptModal(customer, text) {
+      receiptText = text;
+      byId("notify-subtitle").textContent = `${customer.house} · ${customer.name}`;
+      byId("notify-text-preview").value = text;
+      const digits = customer.mobile.replace(/\D/g, "");
+      const phone = digits.length === 10 ? `91${digits}` : digits;
+      byId("btn-open-wa").href = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+      byId("btn-open-sms").href = `sms:${encodeURIComponent(customer.mobile)}?body=${encodeURIComponent(text)}`;
+      openModal("modal-notify");
+    }
+
+    async function copyNotifyText() {
+      try {
+        await navigator.clipboard.writeText(receiptText);
+        showToast("Receipt copied to clipboard.");
+      } catch (error) {
+        byId("notify-text-preview").focus();
+        byId("notify-text-preview").select();
+        showToast("Clipboard access is unavailable. Select and copy the receipt text.");
+      }
+    }
+
+    function setFilter(filter) {
+      activeFilter = filter;
+      document.querySelectorAll(".filter-chip").forEach((button) => {
+        const selected = button.id === `chip-${filter}`;
+        button.className = `filter-chip whitespace-nowrap rounded-lg px-3 py-1.5 font-semibold ${selected ? "bg-sky-600 text-white" : "border border-slate-200 bg-white text-slate-600"}`;
+      });
+      renderCustomerList();
+    }
+
+    function clearSearch() {
+      byId("search-input").value = "";
+      renderCustomerList();
+      byId("search-input").focus();
+    }
+
+    function renderCustomerList() {
+      const query = byId("search-input").value.trim().toLocaleLowerCase();
+      byId("clear-search-btn").classList.toggle("hidden", !query);
+      const customers = state.customers.filter((customer) => {
+        const due = customerDue(customer);
+        const matchesFilter = activeFilter === "all" || (activeFilter === "due" && due > 0) || (activeFilter === "cleared" && due === 0);
+        const searchable = `${customer.house} ${customer.name} ${customer.mobile}`.toLocaleLowerCase();
+        return matchesFilter && searchable.includes(query);
+      });
+      byId("customer-list").innerHTML = customers.map((customer) => {
+        const id = escapeHtml(customer.id);
+        const due = customerDue(customer);
+        return `<article class="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0"><h2 class="truncate text-sm font-extrabold">${escapeHtml(customer.house)} · ${escapeHtml(customer.name)}</h2><p class="mt-0.5 text-[11px] text-slate-500">${customer.mobile ? escapeHtml(customer.mobile) : "No mobile number"} · ${money(customer.rate)} / can</p></div>
+            <span class="shrink-0 rounded-lg px-2 py-1 text-right ${due > 0 ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"}"><span class="block text-[9px] font-bold uppercase">${due > 0 ? "Due" : "Clear"}</span><strong class="text-xs">${money(due)}</strong></span>
+          </div>
+          <div class="my-3 flex gap-3 rounded-xl bg-slate-50 px-3 py-2 text-xs"><span>Can balance: <strong>${customer.cans}</strong></span><span>Total billed: <strong>${money(customer.billed)}</strong></span></div>
+          <div class="grid grid-cols-3 gap-2">
+            <button type="button" onclick="openDeliveryModal('${id}')" class="tap-press rounded-xl bg-sky-600 px-2 py-2.5 text-xs font-bold text-white"><i class="fa-solid fa-truck mr-1" aria-hidden="true"></i>Deliver</button>
+            <button type="button" onclick="openPaymentModal('${id}')" class="tap-press rounded-xl bg-emerald-600 px-2 py-2.5 text-xs font-bold text-white"><i class="fa-solid fa-indian-rupee-sign mr-1" aria-hidden="true"></i>Collect</button>
+            <button type="button" onclick="openHistoryModal('${id}')" class="tap-press rounded-xl border border-slate-300 bg-white px-2 py-2.5 text-xs font-bold text-slate-700"><i class="fa-solid fa-clock-rotate-left mr-1" aria-hidden="true"></i>History</button>
+          </div>
+        </article>`;
+      }).join("");
+      byId("empty-state").hidden = customers.length > 0;
+      byId("badge-cust-count").textContent = state.customers.length;
+    }
+
+    function renderApp() {
+      byId("stat-filled").textContent = state.stock.filled;
+      byId("stat-empty").textContent = state.stock.empty;
+      byId("stat-circulating").textContent = circulatingCans();
+      byId("stat-total").textContent = totalOwnedCans();
+      byId("stat-total-market-due").textContent = money(state.customers.reduce((sum, customer) => sum + customerDue(customer), 0));
+      byId("stat-default-rate").textContent = state.defaultRate;
+      renderCustomerList();
+    }
+
+    document.querySelectorAll(".modal").forEach((modal) => {
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) closeModal(modal.id);
+      });
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") document.querySelectorAll(".modal:not([hidden])").forEach((modal) => closeModal(modal.id));
+    });
+
+    loadState();
+    renderApp();
+  </script>
+</body>
+</html>
